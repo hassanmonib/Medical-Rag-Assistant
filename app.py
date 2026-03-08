@@ -17,7 +17,9 @@ from langchain_core.documents import Document
 
 from rag.document_loader import load_document, load_documents_from_directory
 from rag.rag_pipeline import index_documents, index_data_folder, run_rag_stream
-from utils.config import SAMPLE_DOCS_DIR, validate_config
+from utils.config import DATA_DIR, SAMPLE_DOCS_DIR, validate_config
+
+UPLOADS_DIR = DATA_DIR / "uploads"
 
 # Page config
 st.set_page_config(page_title="Medical AI Assistant", page_icon="🩺", layout="wide")
@@ -42,17 +44,20 @@ with st.sidebar:
         st.rerun()
 
     st.subheader("Indexed documents")
-    if SAMPLE_DOCS_DIR.is_dir():
-        files = sorted(
-            p.name for p in SAMPLE_DOCS_DIR.iterdir() if p.is_file() and p.suffix.lower() in {".pdf", ".txt"}
+    def _list_docs(dir_path: Path) -> list[str]:
+        if not dir_path.is_dir():
+            return []
+        return sorted(
+            p.name for p in dir_path.iterdir() if p.is_file() and p.suffix.lower() in {".pdf", ".txt"}
         )
-        if files:
-            for f in files:
-                st.text(f"• {f}")
-        else:
-            st.info("No PDF/TXT files in data/sample_medical_docs yet.")
+    sample_files = _list_docs(SAMPLE_DOCS_DIR)
+    upload_files = _list_docs(UPLOADS_DIR)
+    all_files = sample_files + upload_files
+    if all_files:
+        for f in all_files:
+            st.text(f"• {f}")
     else:
-        st.info("Folder data/sample_medical_docs not found.")
+        st.info("No PDF/TXT in data folder or uploads yet. Add files to data/sample_medical_docs or upload above.")
 
     st.subheader("Re-index knowledge base")
     if st.button("Re-index documents", use_container_width=True):
@@ -69,10 +74,8 @@ with st.sidebar:
         with st.spinner("Processing and indexing..."):
             try:
                 path = Path(uploaded.name)
-                # Save to temp and load
-                save_path = Path(st.session_state.get("upload_dir", _here / "data" / "uploads"))
-                save_path.mkdir(parents=True, exist_ok=True)
-                file_path = save_path / path.name
+                UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+                file_path = UPLOADS_DIR / path.name
                 with open(file_path, "wb") as f:
                     f.write(uploaded.getvalue())
                 docs = load_document(file_path)
