@@ -19,12 +19,19 @@ from utils.config import (
 )
 from utils.helpers import doc_id_from_path
 
+# Cache index and client so we don't call list_indexes() on every query
+_cached_index = None
+_cached_client = None
+
 
 def get_pinecone_client() -> Pinecone:
-    """Return Pinecone client."""
+    """Return Pinecone client (cached)."""
+    global _cached_client
     if not PINECONE_API_KEY:
         raise ValueError("PINECONE_API_KEY is not set")
-    return Pinecone(api_key=PINECONE_API_KEY)
+    if _cached_client is None:
+        _cached_client = Pinecone(api_key=PINECONE_API_KEY)
+    return _cached_client
 
 
 def ensure_index_exists() -> None:
@@ -44,10 +51,12 @@ def ensure_index_exists() -> None:
 
 
 def get_index():
-    """Return Pinecone index (after ensuring it exists)."""
-    ensure_index_exists()
-    pc = get_pinecone_client()
-    return pc.Index(PINECONE_INDEX_NAME)
+    """Return Pinecone index (cached after first call to avoid list_indexes on every query)."""
+    global _cached_index
+    if _cached_index is None:
+        ensure_index_exists()
+        _cached_index = get_pinecone_client().Index(PINECONE_INDEX_NAME)
+    return _cached_index
 
 
 def get_embeddings() -> OpenAIEmbeddings:

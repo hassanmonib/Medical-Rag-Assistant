@@ -124,6 +124,7 @@ if prompt := st.chat_input("Ask a medical question..."):
     with st.chat_message("assistant"):
         placeholder = st.empty()
         sources_placeholder = st.empty()
+        placeholder.markdown("Searching your documents...")
         full = ""
         sources = []
         try:
